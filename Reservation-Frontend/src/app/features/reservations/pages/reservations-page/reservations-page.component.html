@@ -1,0 +1,176 @@
+<section class="reservations">
+  <header class="reservations__header">
+    <h1>Reservations</h1>
+    <button
+      type="button"
+      class="reservations__reload-button"
+      (click)="loadReservations()"
+      [disabled]="loading()"
+    >
+      Reload
+    </button>
+  </header>
+
+  @if (toastMessage()) {
+    <div class="reservations__toast" role="status" aria-live="polite">
+      {{ toastMessage() }}
+    </div>
+  }
+
+  <section class="reservations__form-section" aria-label="Create reservation">
+    <h2 class="reservations__form-title">Crear nueva reserva</h2>
+
+    <form
+      [formGroup]="reservationForm"
+      (ngSubmit)="submitReservation()"
+      class="reservations__form"
+      novalidate
+    >
+      <div class="reservations__form-row">
+        <label for="nombreCliente">Nombre del cliente</label>
+        <input
+          id="nombreCliente"
+          type="text"
+          formControlName="nombreCliente"
+          [class.reservations__input--invalid]="
+            reservationForm.get('nombreCliente')?.invalid &&
+            reservationForm.get('nombreCliente')?.touched
+          "
+        />
+        @if (
+          reservationForm.get('nombreCliente')?.invalid &&
+          reservationForm.get('nombreCliente')?.touched
+        ) {
+          <span class="reservations__field-error">
+            El nombre del cliente es obligatorio.
+          </span>
+        }
+      </div>
+
+      <div class="reservations__form-row">
+        <label for="fecha">Fecha</label>
+        <input
+          id="fecha"
+          type="date"
+          formControlName="fecha"
+          [class.reservations__input--invalid]="
+            reservationForm.get('fecha')?.invalid &&
+            reservationForm.get('fecha')?.touched
+          "
+        />
+        @if (
+          reservationForm.get('fecha')?.invalid &&
+          reservationForm.get('fecha')?.touched
+        ) {
+          <span class="reservations__field-error">
+            La fecha es obligatoria.
+          </span>
+        }
+      </div>
+
+      <div class="reservations__form-row">
+        <label for="hora">Hora</label>
+        <input
+          id="hora"
+          type="time"
+          formControlName="hora"
+          [class.reservations__input--invalid]="
+            reservationForm.get('hora')?.invalid &&
+            reservationForm.get('hora')?.touched
+          "
+        />
+        @if (
+          reservationForm.get('hora')?.invalid &&
+          reservationForm.get('hora')?.touched
+        ) {
+          <span class="reservations__field-error">
+            La hora es obligatoria.
+          </span>
+        }
+      </div>
+
+      <div class="reservations__form-row">
+        <label for="servicio">Servicio</label>
+        <select
+          id="servicio"
+          formControlName="servicio"
+          [class.reservations__input--invalid]="
+            reservationForm.get('servicio')?.invalid &&
+            reservationForm.get('servicio')?.touched
+          "
+        >
+          <option value="" disabled>Selecciona un servicio</option>
+          @for (service of availableServices; track service) {
+            <option [value]="service">{{ service }}</option>
+          }
+        </select>
+        @if (
+          reservationForm.get('servicio')?.invalid &&
+          reservationForm.get('servicio')?.touched
+        ) {
+          <span class="reservations__field-error">
+            El servicio es obligatorio.
+          </span>
+        }
+      </div>
+
+      <button
+        type="submit"
+        class="reservations__submit-button"
+        [disabled]="loading() || reservationForm.invalid"
+      >
+        Crear reserva
+      </button>
+    </form>
+  </section>
+
+  @if (loading()) {
+    <p class="reservations__status">Loading reservations...</p>
+  } @else if (error()) {
+    <p class="reservations__status reservations__status--error">
+      {{ error() }}
+    </p>
+  } @else if (reservations().length === 0) {
+    <p class="reservations__status">There are no reservations.</p>
+  } @else {
+    <div class="reservations__table-wrapper" role="region" aria-label="Reservations list">
+      <table class="reservations__table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Client</th>
+            <th scope="col">Date</th>
+            <th scope="col">Time</th>
+            <th scope="col">Service</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (reservation of reservations(); track reservation.id) {
+            <tr>
+              <td>{{ reservation.id }}</td>
+              <td>{{ reservation.clientName }}</td>
+              <td>{{ reservation.reservationDate }}</td>
+              <td>{{ reservation.reservationTime }}</td>
+              <td>{{ reservation.serviceName }}</td>
+              <td>{{ reservation.status }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="reservations__cancel-button"
+                  (click)="cancelReservation(reservation.id)"
+                  [disabled]="loading() || reservation.status === 'CANCELED'"
+                  [attr.aria-disabled]="(loading() || reservation.status === 'CANCELED') ? 'true' : 'false'"
+                >
+                  Cancel
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+

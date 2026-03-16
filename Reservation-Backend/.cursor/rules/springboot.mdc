@@ -1,0 +1,144 @@
+---
+description: Java 25 y Spring Boot - estándares de arquitectura y código para este proyecto
+alwaysApply: true
+---
+
+## Estilo general y convenciones
+
+- **Idioma del código**:
+  - Todos los nombres de **paquetes, clases, interfaces, enums, métodos, atributos, parámetros y variables** deben estar en **inglés**.
+  - Los comentarios y Javadoc pueden estar en inglés o español, pero deben ser claros y concisos.
+
+- **Versiones y contexto**:
+  - Asume **Java 25** con características modernas del lenguaje (switch expressions, records, pattern matching, text blocks, etc.).
+  - Proyecto basado en **Spring Boot** con enfoque en arquitectura en capas y principios SOLID.
+
+- **Estructura básica de paquetes** (ajusta los nombres de dominio según corresponda):
+
+  ```text
+  src/
+    main/
+      java/
+        com.maclaren7.reservation  (root package sugerido)
+          config/                  (clases de configuración: seguridad, CORS, Swagger/OpenAPI, etc.)
+          common/                  (utilidades compartidas, excepciones base, constantes globales)
+          domain/
+            model/                 (entidades del dominio / JPA entities)
+            repository/            (interfaces de repositorios, típicamente Spring Data JPA)
+          application/
+            dto/                   (DTOs como Java records para requests/responses)
+            service/               (servicios de aplicación, lógica de negocio orquestada)
+            mapper/                (mapeadores entre entidades y DTOs; usar MapStruct o similares cuando aplique)
+          infrastructure/
+            persistence/           (implementaciones específicas, configuración de base de datos)
+            messaging/             (integraciones con colas/eventos si aplica)
+            external/              (clientes HTTP a servicios externos)
+          api/
+            controller/            (controladores REST: `@RestController`)
+            handler/               (manejadores globales de errores: `@ControllerAdvice`)
+      resources/
+        application.properties     (configuración de Spring; usar profiles)
+    test/
+      java/
+        com.maclaren7.reservation  (tests en estructura paralela a main)
+          api/
+          application/
+          domain/
+          infrastructure/
+  ```
+
+## Clases, métodos y atributos
+
+- **Nomenclatura**:
+  - Clases: `PascalCase` (`ReservationService`, `UserController`, `BookingRequestDto`).
+  - Métodos y atributos: `camelCase` (`createReservation`, `reservationDate`, `userId`).
+  - Constantes: `UPPER_SNAKE_CASE` (`DEFAULT_PAGE_SIZE`).
+  - Evitar abreviaturas no estándar; preferir nombres descriptivos.
+
+- **Visibilidad**:
+  - Mantener el menor nivel de visibilidad posible.
+  - Campos preferiblemente `private` y acceso mediante métodos cuando sea necesario.
+
+## DTOs y uso de records
+
+- **Regla**: Todos los DTOs (request/response entre capas y hacia el exterior) deben ser **Java records**.
+- **Ubicación**: `application.dto` o subpaquetes (`application.dto.reservation`, etc.).
+- **Buenas prácticas**:
+  - Los nombres deben terminar en `Request`, `Response` o `Dto` según el contexto (`CreateReservationRequest`, `ReservationResponse`).
+  - Los records pueden incluir validaciones en el **compact constructor** cuando sea necesario (p.ej. `Objects.requireNonNull`).
+  - No mezclar lógica de negocio compleja dentro de los DTOs; son estructuras de datos.
+
+## Servicios y lógica de negocio
+
+- **Servicios de aplicación**:
+  - Colocar en `application.service`.
+  - Usar interfaces cuando tenga sentido (especialmente cuando haya varias implementaciones).
+  - Métodos descriptivos, centrados en casos de uso (`createReservation`, `cancelReservation`, `listReservationsByUser`).
+
+- **Servicios de dominio** (si aplica un dominio rico):
+  - Colocar lógica de dominio compleja en servicios o métodos específicos del modelo de dominio.
+
+- **Transacciones**:
+  - Usar `@Transactional` en el nivel de servicio, no en los controladores.
+  - Evitar lógica pesada en métodos marcados como `@Transactional(readOnly = false)` si no es necesario.
+
+## Controladores REST
+
+- **Ubicación**: `api.controller`.
+- **Buenas prácticas**:
+  - Usar `@RestController` y `@RequestMapping`/`@GetMapping`/`@PostMapping` específicos.
+  - No incluir lógica de negocio; delegar en servicios (`application.service`).
+  - Trabajar con DTOs (records) en vez de exponer entidades JPA directamente.
+  - Gestionar validación mediante `@Valid` y anotaciones de Bean Validation en los DTOs.
+
+## Manejo de errores
+
+- **Excepciones**:
+  - Definir excepciones de negocio específicas en un paquete como `common.exception` o similar (`ReservationNotFoundException`, `InvalidReservationStatusException`).
+  - No propagar excepciones técnicas sin tratarlas; envolverlas si es necesario con mensajes claros.
+
+- **Handlers globales**:
+  - Usar `@ControllerAdvice` + `@ExceptionHandler` en `api.handler` para mapear excepciones a respuestas HTTP consistentes (códigos, mensajes y cuerpos).
+
+## Persistencia y entidades
+
+- **Entidades JPA**:
+  - Ubicar en `domain.model`.
+  - No exponer entidades directamente en los controladores.
+  - Mantener consistencia en nombres de tablas y columnas (`@Table`, `@Column` cuando sea necesario).
+
+- **Repositorios**:
+  - Interfaces en `domain.repository` extendiendo de Spring Data JPA (`JpaRepository`, etc.).
+  - Evitar consultas complejas embebidas si se pueden dividir o delegar en repos custom.
+
+## Documentación Javadoc
+
+- **Regla clave**: **Cada método público debe tener Javadoc actualizada**.
+  - Documentar propósito, parámetros, valores de retorno y excepciones relevantes.
+  - Actualizar la Javadoc cuando cambie la firma o el comportamiento.
+  - Aplicar también a interfaces públicas y clases de servicios expuestas a otros módulos.
+
+## Testing
+
+- **Ubicación de tests**:
+  - Estructura de paquetes en `src/test/java` paralela a `src/main/java`.
+
+- **Buenas prácticas**:
+  - Priorizar **tests de unidad** para servicios y lógica de dominio.
+  - Usar tests de integración para controladores (`@SpringBootTest`, `@WebMvcTest`) solo cuando sea necesario.
+  - Nombres de métodos de test descriptivos en inglés (`shouldCreateReservationWhenDataIsValid`).
+
+## Configuración y propiedades
+
+- Colocar configuración en `application.properties` o `application.yml` con perfiles (`application-dev`, `application-prod`, etc.) cuando el proyecto lo requiera.
+- No hardcodear credenciales ni secretos; usar variables de entorno o gestor de secretos.
+
+## Cómo debe usar estas reglas el agente
+
+- Cuando escribas o modifiques código Java/Spring Boot en este proyecto:
+  - **Respeta siempre** las convenciones de nombres en inglés.
+  - Usa **records** para todos los DTOs nuevos.
+  - Añade o actualiza la **Javadoc** de todos los métodos públicos que crees o modifiques.
+  - Coloca cada nueva clase en el paquete apropiado según la estructura de proyecto anterior.
+  - Prefiere soluciones limpias y legibles a micro-optimizaciones prematuras.
+
